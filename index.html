@@ -1,109 +1,123 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Cracked AI Receptionist</title>
-<style>
-  body { margin:0; font-family:-apple-system, sans-serif; background:#f2f2f7; color:#1c1c1e; }
-  .chat-container { position:fixed; bottom:20px; right:20px; width:360px; max-height:80vh; display:flex; flex-direction:column; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.1); overflow:hidden; background:white; }
-  .header { background:#007aff; color:white; padding:15px; font-weight:600; }
-  .messages { flex:1; padding:15px; overflow-y:auto; }
-  .input-area { display:flex; border-top:1px solid #e5e5ea; }
-  .input-area input { flex:1; border:none; padding:12px; font-size:15px; }
-  .input-area button { border:none; padding:0 15px; background:#007aff; color:white; cursor:pointer; }
-  .msg { margin-bottom:12px; max-width:80%; line-height:1.4; }
-  .user { align-self:flex-end; background:#e5e5ea; color:#1c1c1e; padding:10px 14px; border-radius:18px; }
-  .bot { align-self:flex-start; background:#f0f0f5; color:#1c1c1e; padding:10px 14px; border-radius:18px; }
-  .mic { background:none; border:none; cursor:pointer; font-size:20px; padding:12px;}
-</style>
-</head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meineke AI Receptionist</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f6f6f7; display: flex; justify-content: center; padding: 40px; }
+    .chatbox { width: 400px; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: white; display: flex; flex-direction: column; }
+    .chat-header { background: #007aff; color: white; padding: 16px; font-size: 18px; font-weight: 600; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+    .msg { margin: 10px 0; padding: 10px 14px; border-radius: 16px; max-width: 80%; }
+    .user { background: #e5e5ea; align-self: flex-end; }
+    .bot  { background: #f1f1f2; align-self: flex-start; }
+    .chat-input { display: flex; border-top: 1px solid #ddd; }
+    .chat-input input { flex: 1; border: none; padding: 14px; font-size: 15px; }
+    .chat-input button { background: #007aff; color: white; border: none; padding: 0 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
 
-<div class="chat-container">
-  <div class="header">AI Receptionist</div>
-  <div class="messages" id="msgBox">
-    <div class="msg bot">Hi! Welcome to our service. How can I assist you today?</div>
+<div class="chatbox">
+  <div class="chat-header">Meineke AI Receptionist</div>
+  <div class="chat-messages" id="chat">
+    <div class="msg bot">Hi! Welcome to Meineke. How can I help you today?</div>
   </div>
-  <div class="input-area">
-    <button class="mic" id="micBtn">🎙️</button>
-    <input type="text" id="uInput" placeholder="Ask me anything..." />
-    <button id="sendBtn">Send</button>
+  <div class="chat-input">
+    <button onclick="startVoice()">🎤</button>
+    <input type="text" id="input" placeholder="Ask me anything..." />
+    <button onclick="send()">Send</button>
   </div>
 </div>
 
 <script>
-const sheetURL = "https://script.google.com/u/0/home/projects/1vN3-i71yfUgJspvb9yxjuenN7pmHiKb5RIa4G-BPP5EKwW3mRxBdkNKv/edit";
 let apiKey = "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";
-let context = "";
-const websiteURL = "https://www.meineke.com";
+let context = "You are the AI receptionist for Meineke in Chicago. Help users with auto services, booking, hours, contact info, etc.";
 
-async function loadContext() {
-  try { const t = await fetch(`https://api.allorigins.win/raw?url=${websiteURL}`).then(r=>r.text());
-    context = `You are an AI receptionist. Here is website content:\n\n${t}`;
-  } catch { context = "You are an AI receptionist."; }
+const WEBSITE_URL = "https://www.meineke.com/locations/chicago-dma/?phemp=true&service=ac";
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbw5sd0sEK9PaWlQTKdEBwTfu3xtYcLDF2whccG39oZQZBP16gZ1qaOSQgDRa7WRYoxP/exec";
+
+const chat = document.getElementById("chat");
+function addMsg(text, role) {
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
 }
-loadContext();
-
-function addMsg(text, cls) {
-  const mb = document.getElementById('msgBox');
-  const el = document.createElement('div');
-  el.textContent = text; el.className = 'msg ' + cls;
-  mb.appendChild(el); mb.scrollTop = mb.scrollHeight;
+function speak(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  speechSynthesis.speak(u);
 }
-
-document.getElementById('sendBtn').onclick = send;
-document.getElementById('uInput').addEventListener('keypress', e=>{ if(e.key==='Enter') send(); });
-document.getElementById('micBtn').onclick = () => {
-  const rec = new (window.SpeechRecognition||window.webkitSpeechRecognition)();
-  rec.onresult = e=>{ document.getElementById('uInput').value = e.results[0][0].transcript; send(); };
+function startVoice() {
+  const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  rec.lang = "en-US";
+  rec.onresult = (e) => {
+    document.getElementById("input").value = e.results[0][0].transcript;
+    send();
+  };
   rec.start();
-};
-
-async function speak(text) {
-  const ut = new SpeechSynthesisUtterance(text);
-  ut.lang = 'en-US';
-  speechSynthesis.speak(ut);
 }
-
 async function send() {
-  const input = document.getElementById('uInput');
-  let text = input.value.trim();
-  if(!text) return;
-  addMsg(text,'user'); input.value='';
-  if(!apiKey) {
-    apiKey = prompt("Enter your OpenRouter API key:");
-    if(!apiKey) return;
-  }
+  const input = document.getElementById("input");
+  const text = input.value.trim();
+  if (!text) return;
+  addMsg(text, "user");
+  input.value = "";
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method:"POST", headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+apiKey
-    },
-    body: JSON.stringify({
-      model:"openai/gpt-3.5-turbo",
-      messages:[
-        {role:"system",content:context},
-        {role:"user",content:text}
-      ]
-    })
-  });
-  const out = await res.json();
-  const reply = out.choices?.[0]?.message?.content || "Oops, something went wrong.";
-  addMsg(reply,'bot');
-  speak(reply);
-  handleBooking(reply);
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: context },
+          { role: "user", content: text }
+        ]
+      })
+    });
+    const data = await res.json();
+    const reply = data.choices[0].message.content;
+    addMsg(reply, "bot");
+    speak(reply);
+    handleBooking(reply);
+  } catch (err) {
+    console.error(err);
+    addMsg("Oops, something went wrong.", "bot");
+  }
 }
 
 async function handleBooking(reply) {
-  if(reply.toLowerCase().includes("please provide your name")) {
-    const name = prompt("Name?");
-    const email = prompt("Email?");
-    const phone = prompt("Phone?");
-    await fetch(sheetURL,{method:"POST",body:JSON.stringify({name,email,phone})});
-  }
-  if(reply.toLowerCase().includes("what date would you like")) {
-    const d = prompt("Date (YYYY-MM-DD)");
-    const t = prompt("Time (HH:MM)");
-    await fetch(sheetURL,{method:"POST",body:JSON.stringify({name:"",email:"",phone:"",date:d,time:t})});
+  if (reply.toLowerCase().includes("book") || reply.toLowerCase().includes("appointment")) {
+    const name = prompt("Your name?");
+    const email = prompt("Your email?");
+    const phone = prompt("Your phone?");
+    const date = prompt("Preferred date?");
+    const time = prompt("Preferred time?");
+    await fetch(SHEET_URL, {
+      method: "POST",
+      body: JSON.stringify({ name, email, phone, date, time }),
+      headers: { "Content-Type": "application/json" }
+    });
+    addMsg("Thanks! Your request has been submitted.", "bot");
   }
 }
+
+// Load content from Meineke’s site to improve replies
+(async function enhanceContext() {
+  try {
+    const raw = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(WEBSITE_URL)}`).then(r => r.text());
+    context += "\n\nWebsite info:\n" + raw.slice(0, 4000); // limit for gpt-3.5
+  } catch (e) {
+    console.warn("Scrape failed:", e);
+  }
+})();
 </script>
 
-</body></html>
+</body>
+</html>
